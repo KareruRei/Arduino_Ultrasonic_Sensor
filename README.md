@@ -1,0 +1,5 @@
+[![Linkedin Badge](#)
+[![Instagram Badge](#)
+[![Youtube Badge](#)
+[![Medium Badge](#)
+[![Gmail Badge](#)
