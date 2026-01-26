@@ -1,16 +1,18 @@
 CREATE TABLE IF NOT EXISTS SensorLog (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     sensor VARCHAR(20) NOT NULL,
-    sensor_data FLOAT,
-    log_time DATETIME NOT NULL DEFAULT CURRENT_DATE
+    sensor_data FLOAT NOT NULL,
+    log_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS EventLog (
-    id BIGINT UNIQUE NOT NULL,
-    description VARCHAR(50) NOT NULL,
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    sensorlog_id BIGINT UNIQUE NOT NULL,
+    description VARCHAR(30) NOT NULL,
+    intruder_detected BOOLEAN NOT NULL,
 
     CONSTRAINT eventlog_id_fkey
-    FOREIGN KEY (id)
+    FOREIGN KEY (sensorlog_id)
     REFERENCES SensorLog(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 );
