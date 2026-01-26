@@ -1,16 +1,156 @@
 <html>
-    <head>
-        <title>Dashboard</title>
-        <link rel="stylesheet" href="styles.css">
-    </head>
+<head>
+    <meta charset="utf-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
 
-    <body>
-        <div class="parent">
-            <div class="div1">1</div>
-            <div class="div2">2</div>
-            <div class="div3">3</div>
-            <div class="div4">4</div>
-            <div class="div5">5</div>
-        </div>
-    </body>
+<body>
+    <header class="topbar">
+        <div class="title">RADAR CONTROL SYSTEM</div>
+        <div class="clock" id="clock"></div>
+    </header>
+
+    <section class="dashboard">
+        <div class="grid">
+            <div class="item item-0" id="radar"></div>
+            <div class="item item-1">
+                <div class="activity">
+                    <table>
+                        <tr>
+                            <th>Time</th>
+                            <th>Activity</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="item item-2">
+                <div class="hud-container">
+                    <div class="hud-label">DIRECTIONAL THREAT SENSOR</div>
+                    <div class="compass-strip" id="compassHUD">
+                        <div class="center-line"></div>
+                    </div>
+                    <div class="hud-readout">
+                        ACTIVE SCAN: <span id="current-angle">180°</span>
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+<script>
+function updateClock() {
+    const now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleTimeString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+let angle = 180; 
+let targets = [];
+
+function setup() {
+    const div = document.getElementById("radar");
+    if(div.offsetHeight === 0) div.style.height = "300px";
+
+    const canvas = createCanvas(div.clientWidth, div.clientHeight);
+    canvas.parent("radar");
+    angleMode(DEGREES);
+    generateTargets();
+}
+
+function generateTargets() {
+    targets = [];
+    for (let i = 0; i < 5; i++) {
+        targets.push({
+            angle: random(180, 360),
+            distance: random(0.2, 0.9),
+            opacity: 255
+        });
+    }
+}
+
+function draw() {
+    background(0, 30); 
+
+    const r = min(width, height * 2) * 0.8;
+
+    translate(width / 2, height * 0.9);
+
+    stroke(0, 255, 0, 100);
+    noFill();
+    for (let i = 1; i <= 4; i++) {
+        let diameter = (r * i) / 4;
+        arc(0, 0, diameter, diameter, 180, 360);
+    }
+    
+    line(-r/2, 0, r/2, 0);
+
+    noStroke();
+    targets.forEach(t => {
+        const x = (r/2 * t.distance) * cos(t.angle);
+        const y = (r/2 * t.distance) * sin(t.angle);
+        
+        if (angle > t.angle) {
+            fill(0, 255, 0, t.opacity);
+            circle(x, y, 8);
+        }
+    });
+
+    const sx = r/2 * cos(angle);
+    const sy = r/2 * sin(angle);
+    stroke(0, 255, 0);
+    strokeWeight(2);
+    line(0, 0, sx, sy);
+
+    angle += 1.5; 
+    if (angle > 360) {
+        angle = 180;
+        generateTargets();
+    }
+}
+
+function windowResized() {
+    const div = document.getElementById("radar");
+    resizeCanvas(div.clientWidth, div.clientHeight);
+}
+// Inside the draw() function, where you handle angle updates:
+document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
+
+// Logic to update HUD markers
+const hud = document.getElementById("compassHUD");
+// Clear old markers (except center line)
+hud.querySelectorAll('.threat-marker').forEach(m => m.remove());
+
+targets.forEach(t => {
+    // Map the 180-360 angle to 0-100% of the HUD width
+    let percent = map(t.angle, 180, 360, 0, 100);
+    
+    let marker = document.createElement("div");
+    marker.className = "threat-marker";
+    marker.style.left = percent + "%";
+    
+    // Make marker red if it's very close (distance < 0.4)
+    if(t.distance < 0.4) marker.style.background = "red";
+    
+    hud.appendChild(marker);
+});
+fetch("data.json")
+.then(res => res.json())
+.then(data => {
+    const table = document.querySelector(".item-1 table");
+
+    data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${row.time}</td>
+            <td>${row.activity}</td>
+        `;
+        table.appendChild(tr);
+    });
+});
+</script>
+
+</body>
 </html>
