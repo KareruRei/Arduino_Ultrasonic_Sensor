@@ -29,7 +29,7 @@ try {
     $sensor_stmt = $pdo->prepare('INSERT INTO SensorLog (sensor, sensor_data) VALUES (:sensor, :sensor_data)');
     $sensor_stmt->execute(['sensor' => $data['sensor'], 'sensor_data' => $data['sensor_data']]);
 
-    if (isset($data['description'])) {
+    if (isset($data['description']) && isset($data['intruder_detected'])) {
         $sensor_id = $pdo->lastInsertId();
 
         $event_stmt = $pdo->prepare('INSERT INTO EventLog (sensorlog_id, description, intruder_detected) VALUES (:id, :desc, :intruder)');
