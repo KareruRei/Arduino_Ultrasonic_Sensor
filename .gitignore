@@ -1,2 +1,3 @@
 backend/vendor
 arduino/arduino_secrets.h
+.env
