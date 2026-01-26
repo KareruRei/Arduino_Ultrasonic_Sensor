@@ -115,23 +115,16 @@ function windowResized() {
     const div = document.getElementById("radar");
     resizeCanvas(div.clientWidth, div.clientHeight);
 }
-// Inside the draw() function, where you handle angle updates:
 document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
-
-// Logic to update HUD markers
 const hud = document.getElementById("compassHUD");
-// Clear old markers (except center line)
 hud.querySelectorAll('.threat-marker').forEach(m => m.remove());
 
 targets.forEach(t => {
-    // Map the 180-360 angle to 0-100% of the HUD width
     let percent = map(t.angle, 180, 360, 0, 100);
     
     let marker = document.createElement("div");
     marker.className = "threat-marker";
     marker.style.left = percent + "%";
-    
-    // Make marker red if it's very close (distance < 0.4)
     if(t.distance < 0.4) marker.style.background = "red";
     
     hud.appendChild(marker);
