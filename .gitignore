@@ -1,3 +1,4 @@
 backend/vendor
+backend/config/locks
 arduino/arduino_secrets.h
 .env
