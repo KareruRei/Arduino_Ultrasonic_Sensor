@@ -24,7 +24,8 @@ The backend has an HTTP-based Web Server which receives HTTP requests primarily 
 ### 1st: Get the following if you haven't already
 1. Git
 2. PHP
-3. XAMPP
+3. composer
+4. XAMPP
 
 ### 2nd: Clone the GitHub Repository
 ```
@@ -41,7 +42,12 @@ git clone https://github.com/KareruRei/Arduino_Ultrasonic_Sensor.git
     #define SECRET_WS_PORT 8080
     ```
 
-### 4th: Set up the PHP backend's .env file
+### 4th: Install the PHP backend's dependencies
+```
+composer install
+```
+
+### 5th: Set up the PHP backend's .env file
 1. Create this file: `backend/.env`
 2. Paste the following content inside the created file:
     ```
@@ -54,7 +60,7 @@ git clone https://github.com/KareruRei/Arduino_Ultrasonic_Sensor.git
     ```
     Edit the last line to include your database root user's password (leave as is if the password is blank). The backend must authenticate as root to automatically set up the database from scratch. After that, the backend will always authenticate as a different user.
 
-### 5th: Expose the backend API endpoints to xampp/htdocs
+### 6th: Expose the backend API endpoints to xampp/htdocs
 - Windows (Run Command Prompt as Administrator)
     ```
     cd "full/path/to/xampp/htdocs"
@@ -67,7 +73,7 @@ git clone https://github.com/KareruRei/Arduino_Ultrasonic_Sensor.git
     ln -s "full/path/to/Arduino_Ultrasonic_Sensor/backend/api" arduino-sensor-backend
     ```
 
-### 6th: Run the project
+### 7th: Run the project
 1. Open `XAMPP Control Panel`.
 2. Start the `Apache` and `MySQL` modules. Wait for the modules to start running.
 3. Run the Arduino board. Wait for it to connect to the WiFi and WebSocket.
