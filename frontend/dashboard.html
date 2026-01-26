@@ -1,7 +1,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Dashboard</title>
+    <title>Radar Control System</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -49,6 +49,8 @@ updateClock();
 
 let angle = 180; 
 let targets = [];
+let moveDirection = 1; 
+let scanSpeed = 1.0;   
 
 function setup() {
     const div = document.getElementById("radar");
@@ -64,18 +66,38 @@ function generateTargets() {
     targets = [];
     for (let i = 0; i < 5; i++) {
         targets.push({
-            angle: random(180, 360),
+            angle: random(190, 350), 
             distance: random(0.2, 0.9),
-            opacity: 255
+            visible: false
         });
     }
 }
 
+function updateHUD() {
+    const hud = document.getElementById("compassHUD");
+    hud.querySelectorAll('.threat-marker').forEach(m => m.remove());
+
+    targets.forEach(t => {
+        if (!t.visible) return;
+
+        let percent = map(t.angle, 180, 360, 0, 100);
+        let marker = document.createElement("div");
+        marker.className = "threat-marker";
+        marker.style.position = "absolute";
+        marker.style.left = percent + "%";
+        marker.style.width = "4px";
+        marker.style.height = "100%";
+        
+        marker.style.background = t.distance < 0.4 ? "red" : "#00ff00";
+        if(t.distance < 0.4) marker.style.boxShadow = "0 0 8px red";
+        
+        hud.appendChild(marker);
+    });
+}
+
 function draw() {
     background(0, 30); 
-
     const r = min(width, height * 2) * 0.8;
-
     translate(width / 2, height * 0.9);
 
     stroke(0, 255, 0, 100);
@@ -84,16 +106,19 @@ function draw() {
         let diameter = (r * i) / 4;
         arc(0, 0, diameter, diameter, 180, 360);
     }
-    
     line(-r/2, 0, r/2, 0);
 
-    noStroke();
     targets.forEach(t => {
         const x = (r/2 * t.distance) * cos(t.angle);
         const y = (r/2 * t.distance) * sin(t.angle);
         
-        if (angle > t.angle) {
-            fill(0, 255, 0, t.opacity);
+        if (abs(angle - t.angle) < scanSpeed * 2) {
+            t.visible = true;
+        }
+
+        if (t.visible) {
+            noStroke();
+            fill(t.distance < 0.4 ? [255, 0, 0] : [0, 255, 0]);
             circle(x, y, 8);
         }
     });
@@ -104,46 +129,32 @@ function draw() {
     strokeWeight(2);
     line(0, 0, sx, sy);
 
-    angle += 1.5; 
-    if (angle > 360) {
-        angle = 180;
-        generateTargets();
+    angle += (scanSpeed * moveDirection);
+    
+    if (angle >= 360 || angle <= 180) {
+        moveDirection *= -1; 
     }
+
+    document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
+    updateHUD();
 }
 
 function windowResized() {
     const div = document.getElementById("radar");
     resizeCanvas(div.clientWidth, div.clientHeight);
 }
-document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
-const hud = document.getElementById("compassHUD");
-hud.querySelectorAll('.threat-marker').forEach(m => m.remove());
 
-targets.forEach(t => {
-    let percent = map(t.angle, 180, 360, 0, 100);
-    
-    let marker = document.createElement("div");
-    marker.className = "threat-marker";
-    marker.style.left = percent + "%";
-    if(t.distance < 0.4) marker.style.background = "red";
-    
-    hud.appendChild(marker);
-});
 fetch("data.json")
 .then(res => res.json())
+.catch(() => []) 
 .then(data => {
     const table = document.querySelector(".item-1 table");
-
     data.forEach(row => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${row.time}</td>
-            <td>${row.activity}</td>
-        `;
+        tr.innerHTML = `<td>${row.time}</td><td>${row.activity}</td>`;
         table.appendChild(tr);
     });
 });
 </script>
-
 </body>
 </html>
