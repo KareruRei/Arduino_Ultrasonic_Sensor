@@ -15,7 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 require __DIR__ . '/../../config/bootstrap.php';
 
 try {
-    $stmt = $pdo->query('SELECT * FROM EventLog LIMIT 14');
+    $stmt = ($_GET['type'] ?? 'sensor') === 'event' ?
+        $pdo->query('SELECT * FROM EventLog LIMIT 14') :
+        $pdo->query('SELECT * FROM SensorLog LIMIT 14');
+
     $rows = $stmt->fetchAll(PDO::FETCH_NUM);
     echo json_encode($rows);
 }
