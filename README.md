@@ -76,5 +76,9 @@ composer install
 ### 7th: Run the project
 1. Open `XAMPP Control Panel`.
 2. Start the `Apache` and `MySQL` modules. Wait for the modules to start running.
-3. Run the Arduino board. Wait for it to connect to the WiFi and WebSocket.
-4. Open your browser and visit the webpage link.
+3. Go to the `backend/websocket` working directory and paste this in a terminal:
+    ```
+    php start-websocket.php
+    ```
+4. Run the Arduino board. Wait for it to connect to the WiFi and WebSocket.
+5. Open your browser and visit the webpage link.
