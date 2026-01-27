@@ -9,7 +9,8 @@ class WebSocketServer implements MessageComponentInterface {
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients[$conn->resourceId] = $conn;
-        echo "{date('Y-m-d H:i:s')} - New client has connected: {$conn->resourceId}\n";
+        $now = date("Y-m-d H:i:s");
+        echo "$now - New client has connected: {$conn->resourceId}\n";
     }
 
     public function onMessage(ConnectionInterface $from, $data) {
@@ -29,14 +30,16 @@ class WebSocketServer implements MessageComponentInterface {
     }
 
     public function onClose(ConnectionInterface $conn) {
+        $now = date("Y-m-d H:i:s");
+
         if ($conn === $this->arduino) {
             $this->arduino = null;
-            echo "{date('Y-m-d H:i:s')} - Arduino connection: {$conn->resourceId} disconnected.\n";
+            echo "$now - Arduino connection: {$conn->resourceId} disconnected.\n";
             return;
         }
 
         unset($this->clients[$conn->resourceId]);
-        echo "{date('Y-m-d H:i:s')} - Client: {$conn->resourceId} disconnected.\n";
+        echo "$now - Client: {$conn->resourceId} disconnected.\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
