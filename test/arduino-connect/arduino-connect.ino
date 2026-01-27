@@ -2,10 +2,10 @@
 #include <ArduinoHttpClient.h>
 #include <Servo.h>
 // ===== WIFI & WEBSOCKET CONFIG =====
-char ssid[] = "YOUR_WIFI_NAME";
-char pass[] = "YOUR_WIFI_PASSWORD";
+char ssid[] = "Lacuesta_3";
+char pass[] = "royceehugh042406";
 
-char wsServer[] = "192.168.1.100";   // backend IP / domain
+char wsServer[] = "192.168.50.179";   // backend IP / domain
 int wsPort = 8080;                   // websocket port
 
 WiFiClient wifi;

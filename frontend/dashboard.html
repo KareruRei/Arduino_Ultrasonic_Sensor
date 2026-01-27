@@ -3,6 +3,7 @@
     <meta charset="utf-8">
     <title>Radar Control System</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="img/icon.png">
 </head>
 
 <body>
@@ -52,13 +53,14 @@ updateClock();
 
 let ws;
 let statusSpan = null;
+const API_BASE_URL = "http://localhost/arduino-sensor-backend";
+const WS_URL = "ws://localhost:8080";
 
 function initWebSocket() {
-    const wsUrl = "ws://localhost:8080";
-    ws = new WebSocket(wsUrl);
+    ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
-        console.log("Connected to backend");
+        console.log("Connected to WebSocket backend");
         ws.send(JSON.stringify({ role: "client" }));
         updateConnectionStatus(true);
     };
@@ -78,14 +80,80 @@ function initWebSocket() {
     };
 
     ws.onclose = () => {
-        console.log("Disconnected from backend");
+        console.log("Disconnected from WebSocket backend");
         updateConnectionStatus(false);
-        // Try to reconnect after 3 seconds
         setTimeout(initWebSocket, 3000);
     };
 }
-// Initialize WebSocket connection on page load
-window.addEventListener('load', initWebSocket);
+
+function updateConnectionStatus(isConnected) {
+    if (statusSpan) {
+        statusSpan.textContent = isConnected ? "Connected" : "Disconnected";
+        statusSpan.style.color = isConnected ? "#00ff41" : "#ff4141";
+    }
+}
+
+// Fetch historical sensor logs from REST API
+async function loadHistoricalLogs() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/get-logs.php?type=sensor`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const logs = await response.json();
+        
+        // Process historical logs - add them to the activity table
+        logs.forEach(log => {
+            // logs are arrays from fetchAll(PDO::FETCH_NUM)
+            // Format: [id, sensor, sensor_data, created_at]
+            addHistoricalActivityEntry(log);
+        });
+        
+        console.log("Loaded " + logs.length + " historical sensor logs");
+    } catch (error) {
+        console.error("Failed to load historical logs:", error);
+    }
+}
+
+// Fetch event logs from REST API
+async function loadEventLogs() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/get-logs.php?type=event`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const events = await response.json();
+        console.log("Loaded " + events.length + " event logs");
+    } catch (error) {
+        console.error("Failed to load event logs:", error);
+    }
+}
+
+// Submit sensor data to backend
+async function submitSensorData(sensorData) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/post-logs.php`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(sensorData)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        console.log("Sensor data submitted successfully");
+    } catch (error) {
+        console.error("Failed to submit sensor data:", error);
+    }
+}
+
+// Initialize on page load
+window.addEventListener('load', () => {
+    initWebSocket();
+    loadHistoricalLogs();
+    loadEventLogs();
+});
 
 let angle = 180; 
 let targets = [];
@@ -93,9 +161,7 @@ let moveDirection = 1;
 let scanSpeed = 0.5;   
 
 function handleSensorData(data) {
-    // Handle incoming sensor data from Arduino
     if (data.sensor === 'Ultrasonic Sensor' && data.distance !== undefined) {
-        // Add to targets for radar visualization
         let targetIndex = targets.findIndex(t => t.angle === data.angle);
         
         if (targetIndex === -1) {
@@ -144,6 +210,36 @@ function addActivityEntry(data) {
     while (tbody.children.length > 50) {
         tbody.removeChild(tbody.lastChild);
     }
+}
+
+function addHistoricalActivityEntry(log) {
+    const table = document.querySelector('.item-1 table tbody');
+    
+    // Create tbody if it doesn't exist
+    if (!table) {
+        const tbody = document.createElement('tbody');
+        document.querySelector('.item-1 table').appendChild(tbody);
+        return; // Return early if we just created tbody
+    }
+
+    // Parse log array: [id, sensor, sensor_data, created_at]
+    const createdAt = log[3] ? new Date(log[3]).toLocaleTimeString() : 'N/A';
+    const sensorData = JSON.parse(log[2] || '{}');
+    const distance = sensorData.distance || 0;
+    
+    // Determine activity based on distance
+    const activity = distance < 400 ? `THREAT DETECTED - ${Math.round(distance)}cm` : `CLEAR - ${Math.round(distance)}cm`;
+    
+    // Create new row
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${createdAt}</td>
+        <td>${activity}</td>
+    `;
+    
+    // Add row to tbody
+    const tbody = document.querySelector('.item-1 table tbody');
+    tbody.appendChild(row);
 }
 
 function setup() {
