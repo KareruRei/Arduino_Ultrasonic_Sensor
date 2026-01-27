@@ -17,10 +17,13 @@
             <div class="item item-1">
                 <div class="activity">
                     <table>
-                        <tr>
-                            <th>Time</th>
-                            <th>Activity</th>
-                        </tr>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -47,24 +50,101 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-const ws = new WebSocket("ws://YOUR_BACKEND_IP:8080");
+let ws;
+let statusSpan = null;
 
-ws.onopen = () => {
-    console.log("Connected to backend");
-    ws.send(JSON.stringify({ role: "client" }));
-};
+function initWebSocket() {
+    const wsUrl = "ws://localhost:8080";
+    ws = new WebSocket(wsUrl);
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    handleSensorData(data);
-};
+    ws.onopen = () => {
+        console.log("Connected to backend");
+        ws.send(JSON.stringify({ role: "client" }));
+        updateConnectionStatus(true);
+    };
 
-ws.onerror = err => console.error("WS error", err);
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            handleSensorData(data);
+        } catch (e) {
+            console.error("Failed to parse message:", event.data, e);
+        }
+    };
+
+    ws.onerror = err => {
+        console.error("WS error", err);
+        updateConnectionStatus(false);
+    };
+
+    ws.onclose = () => {
+        console.log("Disconnected from backend");
+        updateConnectionStatus(false);
+        // Try to reconnect after 3 seconds
+        setTimeout(initWebSocket, 3000);
+    };
+}
+// Initialize WebSocket connection on page load
+window.addEventListener('load', initWebSocket);
 
 let angle = 180; 
 let targets = [];
 let moveDirection = 1; 
 let scanSpeed = 0.5;   
+
+function handleSensorData(data) {
+    // Handle incoming sensor data from Arduino
+    if (data.sensor === 'Ultrasonic Sensor' && data.distance !== undefined) {
+        // Add to targets for radar visualization
+        let targetIndex = targets.findIndex(t => t.angle === data.angle);
+        
+        if (targetIndex === -1) {
+            targets.push({
+                angle: data.angle || 0,
+                distance: (data.distance || 0) / 1000, // Normalize distance to 0-1 range
+                visible: false
+            });
+        } else {
+            targets[targetIndex].distance = (data.distance || 0) / 1000;
+        }
+
+        // Add activity entry to table
+        addActivityEntry(data);
+    }
+}
+
+function addActivityEntry(data) {
+    const table = document.querySelector('.item-1 table tbody');
+    
+    // Create tbody if it doesn't exist
+    if (!table) {
+        const tbody = document.createElement('tbody');
+        document.querySelector('.item-1 table').appendChild(tbody);
+    }
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    
+    // Determine activity based on distance (less than 400cm = threat)
+    const distance = data.distance || 0;
+    const activity = distance < 400 ? `THREAT DETECTED - ${Math.round(distance)}cm` : `CLEAR - ${Math.round(distance)}cm`;
+    
+    // Create new row
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${timeStr}</td>
+        <td>${activity}</td>
+    `;
+    
+    // Add row to top of tbody
+    const tbody = document.querySelector('.item-1 table tbody');
+    tbody.insertBefore(row, tbody.firstChild);
+    
+    // Keep only last 50 entries
+    while (tbody.children.length > 50) {
+        tbody.removeChild(tbody.lastChild);
+    }
+}
 
 function setup() {
     const div = document.getElementById("radar");
