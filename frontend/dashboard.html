@@ -47,10 +47,24 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+const ws = new WebSocket("ws://YOUR_BACKEND_IP:8080");
+
+ws.onopen = () => {
+    console.log("Connected to backend");
+    ws.send(JSON.stringify({ role: "client" }));
+};
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleSensorData(data);
+};
+
+ws.onerror = err => console.error("WS error", err);
+
 let angle = 180; 
 let targets = [];
 let moveDirection = 1; 
-let scanSpeed = 1.0;   
+let scanSpeed = 0.5;   
 
 function setup() {
     const div = document.getElementById("radar");
@@ -59,18 +73,6 @@ function setup() {
     const canvas = createCanvas(div.clientWidth, div.clientHeight);
     canvas.parent("radar");
     angleMode(DEGREES);
-    generateTargets();
-}
-
-function generateTargets() {
-    targets = [];
-    for (let i = 0; i < 5; i++) {
-        targets.push({
-            angle: random(190, 350), 
-            distance: random(0.2, 0.9),
-            visible: false
-        });
-    }
 }
 
 function updateHUD() {
@@ -144,17 +146,6 @@ function windowResized() {
     resizeCanvas(div.clientWidth, div.clientHeight);
 }
 
-fetch("data.json")
-.then(res => res.json())
-.catch(() => []) 
-.then(data => {
-    const table = document.querySelector(".item-1 table");
-    data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.time}</td><td>${row.activity}</td>`;
-        table.appendChild(tr);
-    });
-});
 </script>
 </body>
 </html>
