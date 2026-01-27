@@ -58,6 +58,9 @@ void setup() {
   // ===== CONNECT TO WEBSOCKET =====
   Serial.println("Connecting to WebSocket...");
   ws.begin();
+  ws.beginMessage(TYPE_TEXT);
+  ws.print("{\"role\":\"arduino\"}");
+  ws.endMessage();
 }
 
 void sendRadarData(int angle, int distance, bool locked) {
@@ -80,6 +83,11 @@ void loop() {
   if (!ws.connected()) {
     Serial.println("WebSocket disconnected. Reconnecting...");
     ws.begin();
+    
+    ws.beginMessage(TYPE_TEXT);
+    ws.print("{\"role\":\"arduino\"}");
+    ws.endMessage();
+
     delay(1000);
     return;
   }
