@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Sensor Simulator</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; line-height: 1.6; }
+        #log { height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; background: #f9f9f9; margin-top: 10px; font-family: monospace; font-size: 0.85em; }
+        .input-group { margin-bottom: 10px; }
+        input[type="text"] { width: 70%; padding: 8px; }
+        button { padding: 10px 15px; cursor: pointer; font-weight: bold; }
+        .status { font-weight: bold; }
+        .sent { color: blue; }
+        .received { color: green; }
+        .error { color: red; }
+        #toggleSensorBtn { background-color: #e0e0e0; }
+        #toggleSensorBtn.active { background-color: #ff4444; color: white; }
+    </style>
+</head>
+<body>
+
+    <h2>Arduino Sensor Simulator</h2>
+
+    <div class="input-group">
+        <input type="text" id="wsUrl" value="ws://localhost:8080" placeholder="ws://localhost:8080">
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <div class="input-group">
+        <button id="toggleSensorBtn" disabled>START SENSOR DATA</button>
+    </div>
+
+    <div>Status: <span id="status" class="status">Disconnected</span></div>
+    
+    <div id="log"></div>
+
+    <script>
+        let socket;
+        let sensorInterval = null;
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const wsUrl = document.getElementById('wsUrl');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const toggleSensorBtn = document.getElementById('toggleSensorBtn');
+
+        function writeToLog(message, className) {
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(div);
+            // Auto-scroll to bottom
+            if (log.childNodes.length > 100) log.removeChild(log.firstChild); // Keep log lean
+            log.scrollTop = log.scrollHeight;
+        }
+
+        connectBtn.onclick = () => {
+            socket = new WebSocket(wsUrl.value);
+
+            socket.onopen = () => {
+                status.textContent = "Connected";
+                status.style.color = "green";
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                toggleSensorBtn.disabled = false;
+                writeToLog("Connected to " + wsUrl.value, "");
+
+                // Optional: Identify as Arduino to your PHP server immediately
+                socket.send(JSON.stringify({ role: 'arduino' }));
+            };
+
+            socket.onmessage = (event) => {
+                writeToLog("Received: " + event.data, "received");
+            };
+
+            socket.onclose = () => {
+                stopSensor();
+                status.textContent = "Disconnected";
+                status.style.color = "red";
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                toggleSensorBtn.disabled = true;
+                writeToLog("Connection closed.", "");
+            };
+
+            socket.onerror = (error) => {
+                writeToLog("WebSocket Error observed", "error");
+            };
+        };
+
+        disconnectBtn.onclick = () => {
+            if (socket) socket.close();
+        };
+
+        toggleSensorBtn.onclick = () => {
+            if (sensorInterval) {
+                stopSensor();
+            } else {
+                startSensor();
+            }
+        };
+
+        function startSensor() {
+            toggleSensorBtn.textContent = "STOP SENSOR DATA";
+            toggleSensorBtn.classList.add('active');
+            
+            sensorInterval = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    const data = {
+                        sensor: 'Ultrasonic Sensor',
+                        angle: Math.floor(Math.random() * 180),
+                        distance: Math.floor(Math.random() * 400)
+                    };
+                    const jsonStr = JSON.stringify(data);
+                    socket.send(jsonStr);
+                    writeToLog("Sent: " + jsonStr, "sent");
+                }
+            }, 5); // 5ms interval
+        }
+
+        function stopSensor() {
+            clearInterval(sensorInterval);
+            sensorInterval = null;
+            toggleSensorBtn.textContent = "START SENSOR DATA";
+            toggleSensorBtn.classList.remove('active');
+        }
+    </script>
+</body>
+</html>
