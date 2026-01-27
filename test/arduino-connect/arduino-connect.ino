@@ -1,15 +1,21 @@
 #include <WiFiS3.h>
 #include <ArduinoHttpClient.h>
 #include <Servo.h>
+#include <ArduinoJson.h>
+
 // ===== WIFI & WEBSOCKET CONFIG =====
-char ssid[] = WIFI_SSID;
-char pass[] = WIFI_PASSWORD;
+char ssid[] = "Lacuesta_2";
+char pass[] = "royceehugh042406";
 
 char wsServer[] = "192.168.50.179";   // backend IP / domain
 int wsPort = 8080;                   // websocket port
 
-WiFiClient wifi;
-WebSocketClient ws(wifi, wsServer, wsPort);
+char httpServer[] = "192.168.50.179"; // backend IP for HTTP requests
+int httpPort = 80;                   // Apache port
+
+WiFiClient wifiClient;
+WebSocketClient ws(wifiClient, wsServer, wsPort);
+HttpClient httpClient(wifiClient, httpServer, httpPort);
 
 Servo radar;
 
