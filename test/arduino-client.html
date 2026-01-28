@@ -37,6 +37,9 @@
     <div id="log"></div>
 
     <script>
+        let angle = 0;
+        let moveRight = true;
+
         let socket;
         let sensorInterval = null;
         const log = document.getElementById('log');
@@ -108,15 +111,14 @@
             
             sensorInterval = setInterval(() => {
                 if (socket && socket.readyState === WebSocket.OPEN) {
-                    const angle = Math.floor(Math.random() * 180);
                     const distance = Math.floor(Math.random() * 400);
-                    const locked = distance < 50 ? 1 : 0;
+                    const locked = distance < 40;
 
                     const buffer = new Uint8Array(4);
                     buffer[0] = angle;
-                    buffer[1] = (distance >> 8);
-                    buffer[2] = (distance & 0xFF);
-                    buffer[3] = locked;
+                    buffer[1] = distance >> 8;
+                    buffer[2] = distance & 0xFF;
+                    buffer[3] = locked ? 1 : 0;
 
                     socket.send(buffer);
                     
@@ -125,8 +127,11 @@
                         .join(' ');
                     
                     writeToLog(`Sent: [${hexString}] (Angle: ${angle}, Dist: ${distance}, Lock: ${locked})`, "sent");
+
+                    angle = moveRight ? angle+1 : angle-1;
+                    if (angle <= 0 || angle >= 180) moveRight = !moveRight;
                 }
-            }, 15);
+            }, 50);
         }
 
         function stopSensor() {
