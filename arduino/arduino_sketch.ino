@@ -30,6 +30,9 @@ uint16_t distance;
 bool locked = false;
 int lockAngle = 0;
 
+unsigned long lastWsAttempt = 0;
+const unsigned long wsReconnectInterval = 3000;
+
 void setup() {
   radar.attach(3);
 
@@ -74,19 +77,19 @@ void sendRadarData(uint8_t angle, uint16_t distance, bool locked) {
   ws.endMessage();
 }
 
-void loop() {
-  // ===== AUTO-RECONNECT WEBSOCKET =====
-  if (!ws.connected()) {
+void autoReconnectWebSocket() {
+  if (!ws.connected() && (millis() - lastWsAttempt > wsReconnectInterval)) {
     Serial.println("WebSocket disconnected. Reconnecting...");
     ws.begin();
-    
     ws.beginMessage(TYPE_TEXT);
     ws.print("{\"role\":\"arduino\"}");
     ws.endMessage();
-
-    delay(1000);
-    return;
+    lastWsAttempt = millis();
   }
+}
+
+void loop() {
+  autoReconnectWebSocket();
 
   // ===== RADAR SWEEP MODE =====
   if (!locked) {
