@@ -1,27 +1,24 @@
 <?php
 
-use Amp\Http\Client\HttpClient;
 use Ratchet\WebSocket\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\RFC6455\Messaging\MessageInterface;
-use Amp\Http\Client\HttpClientBuilder;
-use Amp\Http\Client\Request;
+use React\Http\Browser;
 
 class WebSocketServer implements MessageComponentInterface {
     protected ?ConnectionInterface $arduino = null;
     protected array $clients = [];
-    private HttpClient $http_client;
+    private Browser $browser;
     private int $last_log = 0;
     private bool $last_state = false;
 
     public function __construct() {
-        $this->http_client = new HttpClientBuilder()::buildDefault();
+        $this->browser = new Browser();
     }
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients[$conn->resourceId] = $conn;
-        $now = date("Y-m-d H:i:s");
-        echo "$now - New client has connected: {$conn->resourceId}\n";
+        echo "New client has connected: {$conn->resourceId}\n";
     }
 
     public function onMessage(ConnectionInterface $from, MessageInterface $data) {
@@ -31,6 +28,7 @@ class WebSocketServer implements MessageComponentInterface {
             if (($decoded['role'] ?? '') === 'arduino') {
                 $this->arduino = $from;
                 unset($this->clients[$from->resourceId]);
+                echo "New arduino client: {$from->resourceId}\n";
             }
             return;
         }
@@ -48,8 +46,6 @@ class WebSocketServer implements MessageComponentInterface {
         $angle = ord($payload[0]);
         $distance = (ord($payload[1]) << 8) | ord($payload[2]);
 
-        $log_request = new Request('http://localhost/arduino-sensor-backend/post-logs.php', 'POST');
-
         $request_payload = [
             'angle' => $angle,
             'distance' => $distance,
@@ -62,24 +58,30 @@ class WebSocketServer implements MessageComponentInterface {
         $this->last_log = time();
         $this->last_state = $locked;
 
-        $log_request->setBody(json_encode($request_payload));
-        $this->http_client->request($log_request);
+        $this->browser->post(
+            'http://localhost/arduino-sensor-backend/post-logs.php',
+            ['Content-Type' => 'application/json'],
+            json_encode($request_payload)
+        )->then(
+            function ($response) {  },
+            function ($error) { echo "\nFailed to log: {$error->getMessage()}\n\n"; }
+        );
     }
 
     public function onClose(ConnectionInterface $conn) {
-        $now = date("Y-m-d H:i:s");
-
         if ($conn === $this->arduino) {
             $this->arduino = null;
-            echo "$now - Arduino connection: {$conn->resourceId} disconnected.\n";
+            echo "Arduino client: {$conn->resourceId} disconnected.\n";
             return;
         }
 
         unset($this->clients[$conn->resourceId]);
-        echo "$now - Client: {$conn->resourceId} disconnected.\n";
+        echo "Client: {$conn->resourceId} disconnected.\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
+        echo "\nError with client: {$conn->resourceId}\n";
+        echo "Closing connection due to: {$e->getMessage()}\n\n";
         $conn->close();
     }
 }
