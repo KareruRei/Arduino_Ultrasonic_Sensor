@@ -39,7 +39,7 @@ class WebSocketServer implements MessageComponentInterface {
             $client->send($data);
         }
 
-        if (time() - $this->lastLog < 60*10) return;
+        if (time() - $this->lastLog < 10) return;
         $this->lastLog = time();
 
         $payload = $data->getPayload();
