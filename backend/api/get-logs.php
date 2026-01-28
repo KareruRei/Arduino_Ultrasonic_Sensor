@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-require __DIR__ . '/../../config/bootstrap.php';
+require __DIR__ . '/../config/bootstrap.php';
 
 try {
     $stmt = ($_GET['type'] ?? 'sensor') === 'event' ?
