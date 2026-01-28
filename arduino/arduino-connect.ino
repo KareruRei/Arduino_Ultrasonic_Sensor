@@ -70,7 +70,7 @@ void sendRadarData(uint8_t angle, uint16_t distance, bool locked) {
 
   uint8_t buffer[4] = {angle, distance >> 8, distance & 0xFF, locked};
   ws.beginMessage(TYPE_BINARY);
-  ws.print(buffer, 4);
+  ws.write(buffer, 4);
   ws.endMessage();
 }
 
