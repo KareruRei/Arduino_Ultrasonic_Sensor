@@ -10,8 +10,12 @@ use Amp\Http\Client\Request;
 class WebSocketServer implements MessageComponentInterface {
     protected ?ConnectionInterface $arduino = null;
     protected array $clients = [];
-    private HttpClient $http_client = new HttpClientBuilder()::buildDefault();
+    private HttpClient $http_client;
     private int $lastLog = 0;
+
+    public function __construct() {
+        $this->http_client = new HttpClientBuilder()::buildDefault();
+    }
 
     public function onOpen(ConnectionInterface $conn) {
         $this->clients[$conn->resourceId] = $conn;
@@ -44,7 +48,7 @@ class WebSocketServer implements MessageComponentInterface {
         $distance = (ord($payload[1]) << 8) | ord($payload[2]);
         $locked = ord($payload[3]) == 1;
 
-        $log_request = new Request('http://localhost/post-logs.php', 'POST');
+        $log_request = new Request('http://localhost/arduino-sensor-backend/post-logs.php', 'POST');
 
         $request_payload = [
             'angle' => $angle,

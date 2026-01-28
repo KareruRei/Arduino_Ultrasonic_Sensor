@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require __DIR__ . '/../../config/bootstrap.php';
+require __DIR__ . '/../config/bootstrap.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -26,17 +26,17 @@ if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
 try {
     $pdo->beginTransaction();
 
-    $sensor_stmt = $pdo->prepare('INSERT INTO SensorLog (sensor, sensor_data) VALUES (:sensor, :sensor_data)');
-    $sensor_stmt->execute(['sensor' => $data['sensor'], 'sensor_data' => $data['sensor_data']]);
+    $sensor_stmt = $pdo->prepare('INSERT INTO SensorLog (sensor, sensor_data) VALUES ("Ultrasonic Sensor", :sensor_data)');
+    $sensor_stmt->execute(['sensor_data' => $data['distance']]);
 
-    if (isset($data['description']) && isset($data['intruder_detected'])) {
+    if (isset($data['description']) && isset($data['locked'])) {
         $sensor_id = $pdo->lastInsertId();
 
         $event_stmt = $pdo->prepare('INSERT INTO EventLog (sensorlog_id, description, intruder_detected) VALUES (:id, :desc, :intruder)');
         $event_stmt->execute([
             'id' => $sensor_id,
             'desc' => $data['description'],
-            'intruder' => $data['intruder_detected']
+            'intruder' => $data['locked']
         ]);
     }
 
