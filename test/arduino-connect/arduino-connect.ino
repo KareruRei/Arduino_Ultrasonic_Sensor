@@ -1,6 +1,8 @@
+#include <stdint.h>
 #include <WiFiS3.h>
 #include <ArduinoHttpClient.h>
 #include <Servo.h>
+
 // ===== WIFI & WEBSOCKET CONFIG =====
 char ssid[] = WIFI_SSID;
 char pass[] = WIFI_PASSWORD;
@@ -13,17 +15,17 @@ WebSocketClient ws(wifi, wsServer, wsPort);
 
 Servo radar;
 
-const int red = 4;
-const int blue = 5;
-const int green = 6;
+const byte red = 4;
+const byte blue = 5;
+const byte green = 6;
 
-const int buzzer = 2;
+const byte buzzer = 2;
 
-const int trigPin = 9;
-const int echoPin = 10;
+const byte trigPin = 9;
+const byte echoPin = 10;
 
 long duration;
-int distance;
+uint16_t distance;
 
 bool locked = false;
 int lockAngle = 0;
@@ -63,22 +65,16 @@ void setup() {
   ws.endMessage();
 }
 
-void sendRadarData(int angle, int distance, bool locked) {
+void sendRadarData(uint8_t angle, uint16_t distance, bool locked) {
   if (!ws.connected()) return;
 
-  ws.beginMessage(TYPE_TEXT);
-  ws.print("{\"angle\":");
-  ws.print(angle);
-  ws.print(",\"distance\":");
-  ws.print(distance);
-  ws.print(",\"locked\":");
-  ws.print(locked ? "true" : "false");
-  ws.print("}");
+  uint8_t buffer[4] = {angle, distance >> 8, distance & 0xFF, locked};
+  ws.beginMessage(TYPE_BINARY);
+  ws.print(buffer, 4);
   ws.endMessage();
 }
 
 void loop() {
-
   // ===== AUTO-RECONNECT WEBSOCKET =====
   if (!ws.connected()) {
     Serial.println("WebSocket disconnected. Reconnecting...");
@@ -94,7 +90,7 @@ void loop() {
 
   // ===== RADAR SWEEP MODE =====
   if (!locked) {
-    for (int angle = 0; angle <= 180; angle++) {
+    for (uint8_t angle = 0; angle <= 180; ++angle) {
       radar.write(angle);
       delay(15);
 
