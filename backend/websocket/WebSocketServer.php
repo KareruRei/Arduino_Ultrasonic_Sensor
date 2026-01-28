@@ -11,7 +11,8 @@ class WebSocketServer implements MessageComponentInterface {
     protected ?ConnectionInterface $arduino = null;
     protected array $clients = [];
     private HttpClient $http_client;
-    private int $lastLog = 0;
+    private int $last_log = 0;
+    private bool $last_state = false;
 
     public function __construct() {
         $this->http_client = new HttpClientBuilder()::buildDefault();
@@ -39,14 +40,13 @@ class WebSocketServer implements MessageComponentInterface {
             $client->send($data);
         }
 
-        if (time() - $this->lastLog < 10) return;
-        $this->lastLog = time();
-
         $payload = $data->getPayload();
+        $locked = ord($payload[3]) == 1;
 
+        if ($locked === $this->last_state && time() - $this->last_log < 10) return;
+        
         $angle = ord($payload[0]);
         $distance = (ord($payload[1]) << 8) | ord($payload[2]);
-        $locked = ord($payload[3]) == 1;
 
         $log_request = new Request('http://localhost/arduino-sensor-backend/post-logs.php', 'POST');
 
@@ -57,6 +57,10 @@ class WebSocketServer implements MessageComponentInterface {
         ];
 
         if ($locked) $request_payload['description'] = 'Intruder detected';
+        else if ($this->last_state) $request_payload['description'] = 'Intruder has left';
+
+        $this->last_log = time();
+        $this->last_state = $locked;
 
         $log_request->setBody(json_encode($request_payload));
         $this->http_client->request($log_request);
