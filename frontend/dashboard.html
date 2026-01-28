@@ -56,22 +56,25 @@ let statusSpan = null;
 const API_BASE_URL = "http://localhost/arduino-sensor-backend";
 const WS_URL = "ws://localhost:8080";
 
+let angle = 180, distance = 0, locked = false;
+
 function initWebSocket() {
     ws = new WebSocket(WS_URL);
+    ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
         console.log("Connected to WebSocket backend");
-        ws.send(JSON.stringify({ role: "client" }));
         updateConnectionStatus(true);
     };
 
     ws.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            handleSensorData(data);
-        } catch (e) {
-            console.error("Failed to parse message:", event.data, e);
-        }
+        const bytes = new Uint8Array(event.data);
+
+        angle = bytes[0] + 180;
+        distance = (bytes[1] << 8) | bytes[2];
+        locked = bytes[3] === 1;
+
+        if (locked) handleSensorData({angle: angle, distance: distance});
     };
 
     ws.onerror = err => {
@@ -155,27 +158,21 @@ window.addEventListener('load', () => {
     loadEventLogs();
 });
 
-let angle = 180; 
 let targets = [];
 let moveDirection = 1; 
 let scanSpeed = 0.5;   
 
 function handleSensorData(data) {
-    if (data.sensor === 'Ultrasonic Sensor' && data.distance !== undefined) {
-        let targetIndex = targets.findIndex(t => t.angle === data.angle);
+    let targetIndex = targets.findIndex(t => t.angle === data.angle);
         
-        if (targetIndex === -1) {
-            targets.push({
-                angle: data.angle || 0,
-                distance: (data.distance || 0) / 1000, // Normalize distance to 0-1 range
-                visible: false
-            });
-        } else {
-            targets[targetIndex].distance = (data.distance || 0) / 1000;
-        }
-
-        // Add activity entry to table
-        addActivityEntry(data);
+    if (targetIndex === -1) {
+        targets.push({
+            angle: data.angle || 0,
+            distance: (data.distance || 0) / 1000, // Normalize distance to 0-1 range
+            visible: false
+        });
+    } else {
+        targets[targetIndex].distance = (data.distance || 0) / 1000;
     }
 }
 
@@ -306,12 +303,6 @@ function draw() {
     stroke(0, 255, 0);
     strokeWeight(2);
     line(0, 0, sx, sy);
-
-    angle += (scanSpeed * moveDirection);
-    
-    if (angle >= 360 || angle <= 180) {
-        moveDirection *= -1; 
-    }
 
     document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
     updateHUD();
