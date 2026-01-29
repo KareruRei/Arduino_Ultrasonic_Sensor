@@ -1,318 +1,266 @@
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <title>Radar Control System</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/x-icon" href="img/icon.png">
-</head>
-
-<body>
-    <header class="topbar">
-        <div class="title">RADAR CONTROL SYSTEM</div>
-        <div class="clock" id="clock"></div>
-    </header>
-
-    <section class="dashboard">
-        <div class="grid">
-            <div class="item item-0" id="radar"></div>
-            <div class="item item-1">
-                <div class="activity">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Activity</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="item item-2">
-                <div class="hud-container">
-                    <div class="hud-label">DIRECTIONAL THREAT SENSOR</div>
-                    <div class="compass-strip" id="compassHUD">
-                        <div class="center-line"></div>
-                    </div>
-                    <div class="hud-readout">
-                        ACTIVE SCAN: <span id="current-angle">180°</span>
-                    </div>
-                </div>
-            </div>
-        </div> 
-    </section>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="title">RADAR CONTROL SYSTEM</div>
+    <div class="header-controls">
+        <div id="status-box" class="status-indicator offline">OFFLINE</div>
+        <button class="db-btn" onclick="toggleModal(true)">View Database</button>
+        <div class="clock" id="clock"></div>
+    </div>
+</header>
+
+<section class="dashboard">
+<div class="grid">
+    <div class="item item-0" id="radar"></div>
+
+    <div class="item item-1">
+        <div class="activity">
+            <table>
+                <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Activity</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="item item-2">
+        <div class="hud-container">
+            <div class="hud-title">TACTICAL STATUS</div>
+            <div class="hud-big">
+                <div class="hud-big-label">SWEEP ANGLE</div>
+                <div class="hud-big-value" id="hud-angle">0°</div>
+            </div>
+            <div class="hud-block">
+                <div class="hud-label">PROXIMITY</div>
+                <div class="range-bar">
+                    <div class="range-fill" id="rangeFill"></div>
+                </div>
+            </div>
+            <div class="hud-grid">
+                <div>STATUS</div><div id="hud-status">SCANNING</div>
+                <div>TARGETS</div><div id="target-count">0</div>
+                <div>LAST HIT</div><div id="last-hit">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<div id="dbModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div style="letter-spacing: 2px;">SYSTEM DATABASE LOGS</div>
+            <button class="close-btn" onclick="toggleModal(false)">&times;</button>
+        </div>
+        <div class="modal-body">
+            <table class="db-table" id="database-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Distance</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <script>
-function updateClock() {
-    const now = new Date();
-    document.getElementById("clock").textContent = now.toLocaleTimeString();
+const API_BASE_URL = "http://192.168.50.117/arduino-sensor-backend";
+const WS_URL = "ws://192.168.50.117:8080";
+const MAX_RANGE_CM = 50;
+const TRAIL_LENGTH = 6;
+
+let ws;
+let angle = 0, distance = 0;
+let angleTrail = [], smoothAngle = 0;
+let targets = [];
+let lastLogState = "NONE";
+let dbRefreshInterval;
+
+const statusBox = document.getElementById("status-box");
+
+function updateClock(){
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString();
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-let ws;
-let statusSpan = null;
-const API_BASE_URL = "http://localhost/arduino-sensor-backend";
-const WS_URL = "ws://localhost:8080";
+function toggleModal(show){
+    const modal = document.getElementById('dbModal');
+    modal.style.display = show ? 'flex' : 'none';
+    
+    if(show){
+        loadHistoricalLogs();
+        dbRefreshInterval = setInterval(loadHistoricalLogs, 5000);
+    } else {
+        clearInterval(dbRefreshInterval);
+    }
+}
 
-let angle = 180, distance = 0, locked = false;
+function updateConnectionStatus(isConnected){
+    statusBox.textContent = isConnected ? "ONLINE" : "OFFLINE";
+    statusBox.className = isConnected ? "status-indicator online" : "status-indicator offline";
+}
 
-function initWebSocket() {
+function initWebSocket(){
     ws = new WebSocket(WS_URL);
-    ws.binaryType = 'arraybuffer';
+    ws.binaryType = "arraybuffer";
 
-    ws.onopen = () => {
-        console.log("Connected to WebSocket backend");
-        updateConnectionStatus(true);
+    ws.onopen = () => updateConnectionStatus(true);
+    
+    ws.onmessage = e => {
+        const b = new Uint8Array(e.data);
+        if(b.length >= 3){
+            angle = b[0];
+            distance = (b[1]<<8) | b[2];
+
+            angleTrail.push(angle);
+            if(angleTrail.length > TRAIL_LENGTH) angleTrail.shift();
+
+            handleSensorData({angle, distance});
+            addActivityEntry({distance});
+        }
     };
-
-    ws.onmessage = (event) => {
-        const bytes = new Uint8Array(event.data);
-
-        angle = bytes[0] + 180;
-        distance = (bytes[1] << 8) | bytes[2];
-        locked = bytes[3] === 1;
-
-        if (locked) handleSensorData({angle: angle, distance: distance});
-    };
-
-    ws.onerror = err => {
-        console.error("WS error", err);
-        updateConnectionStatus(false);
-    };
-
+    
+    ws.onerror = () => updateConnectionStatus(false);
     ws.onclose = () => {
-        console.log("Disconnected from WebSocket backend");
         updateConnectionStatus(false);
         setTimeout(initWebSocket, 3000);
     };
 }
 
-function updateConnectionStatus(isConnected) {
-    if (statusSpan) {
-        statusSpan.textContent = isConnected ? "Connected" : "Disconnected";
-        statusSpan.style.color = isConnected ? "#00ff41" : "#ff4141";
-    }
-}
-
-// Fetch historical sensor logs from REST API
-async function loadHistoricalLogs() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/get-logs.php?type=sensor`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const logs = await response.json();
-        
-        // Process historical logs - add them to the activity table
-        logs.forEach(log => {
-            // logs are arrays from fetchAll(PDO::FETCH_NUM)
-            // Format: [id, sensor, sensor_data, created_at]
-            addHistoricalActivityEntry(log);
-        });
-        
-        console.log("Loaded " + logs.length + " historical sensor logs");
-    } catch (error) {
-        console.error("Failed to load historical logs:", error);
-    }
-}
-
-// Fetch event logs from REST API
-async function loadEventLogs() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/get-logs.php?type=event`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const events = await response.json();
-        console.log("Loaded " + events.length + " event logs");
-    } catch (error) {
-        console.error("Failed to load event logs:", error);
-    }
-}
-
-// Submit sensor data to backend
-async function submitSensorData(sensorData) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/post-logs.php`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(sensorData)
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        console.log("Sensor data submitted successfully");
-    } catch (error) {
-        console.error("Failed to submit sensor data:", error);
-    }
-}
-
-// Initialize on page load
-window.addEventListener('load', () => {
-    initWebSocket();
-    loadHistoricalLogs();
-    loadEventLogs();
-});
-
-let targets = [];
-let moveDirection = 1; 
-let scanSpeed = 0.5;   
-
-function handleSensorData(data) {
-    let targetIndex = targets.findIndex(t => t.angle === data.angle);
-        
-    if (targetIndex === -1) {
-        targets.push({
-            angle: data.angle || 0,
-            distance: (data.distance || 0) / 1000, // Normalize distance to 0-1 range
-            visible: false
-        });
+function handleSensorData(data){
+    if(data.distance === 0 || data.distance > MAX_RANGE_CM) return;
+    
+    let t = targets.find(t => Math.abs(t.angle - data.angle) < 2);
+    if(!t){
+        targets.push({ angle: data.angle, distance: data.distance / MAX_RANGE_CM, visible:false, lastSeen: Date.now() });
     } else {
-        targets[targetIndex].distance = (data.distance || 0) / 1000;
+        t.distance = data.distance / MAX_RANGE_CM;
+        t.lastSeen = Date.now();
     }
 }
 
-function addActivityEntry(data) {
-    const table = document.querySelector('.item-1 table tbody');
-    
-    // Create tbody if it doesn't exist
-    if (!table) {
-        const tbody = document.createElement('tbody');
-        document.querySelector('.item-1 table').appendChild(tbody);
-    }
+function addActivityEntry(data){
+    if(data.distance === 0) return;
+    const state = data.distance <= MAX_RANGE_CM ? "THREAT" : "NONE";
+    if(state === lastLogState) return;
+    lastLogState = state;
+    if(state === "NONE") return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString();
-    
-    // Determine activity based on distance (less than 400cm = threat)
-    const distance = data.distance || 0;
-    const activity = distance < 400 ? `THREAT DETECTED - ${Math.round(distance)}cm` : `CLEAR - ${Math.round(distance)}cm`;
-    
-    // Create new row
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td>${timeStr}</td>
-        <td>${activity}</td>
-    `;
-    
-    // Add row to top of tbody
-    const tbody = document.querySelector('.item-1 table tbody');
+    const now = new Date().toLocaleTimeString();
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${now}</td><td>THREAT - ${data.distance}cm</td>`;
+    const tbody = document.querySelector(".item-1 tbody");
     tbody.insertBefore(row, tbody.firstChild);
-    
-    // Keep only last 50 entries
-    while (tbody.children.length > 50) {
-        tbody.removeChild(tbody.lastChild);
+    while(tbody.children.length > 40) tbody.removeChild(tbody.lastChild);
+}
+
+async function loadHistoricalLogs(){
+    try {
+        const res = await fetch(`${API_BASE_URL}/get-logs.php?type=event`);
+        if(!res.ok) return;
+        const logs = await res.json();
+        const tbody = document.querySelector('#database-table tbody');
+        tbody.innerHTML = "";
+
+        logs.forEach(log => {
+            const timestamp = log.log_time;
+            const distance = log.sensor_data;
+            const activity = log.description;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${timestamp}</td><td>${distance}</td><td>${activity}</td>`;
+            tbody.appendChild(row);
+        });
+    } catch(e){
+        console.error("Failed to load logs:", e);
     }
 }
 
-function addHistoricalActivityEntry(log) {
-    const table = document.querySelector('.item-1 table tbody');
-    
-    // Create tbody if it doesn't exist
-    if (!table) {
-        const tbody = document.createElement('tbody');
-        document.querySelector('.item-1 table').appendChild(tbody);
-        return; // Return early if we just created tbody
-    }
-
-    // Parse log array: [id, sensor, sensor_data, created_at]
-    const createdAt = log[3] ? new Date(log[3]).toLocaleTimeString() : 'N/A';
-    const sensorData = JSON.parse(log[2] || '{}');
-    const distance = sensorData.distance || 0;
-    
-    // Determine activity based on distance
-    const activity = distance < 400 ? `THREAT DETECTED - ${Math.round(distance)}cm` : `CLEAR - ${Math.round(distance)}cm`;
-    
-    // Create new row
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td>${createdAt}</td>
-        <td>${activity}</td>
-    `;
-    
-    // Add row to tbody
-    const tbody = document.querySelector('.item-1 table tbody');
-    tbody.appendChild(row);
-}
-
-function setup() {
+function setup(){
     const div = document.getElementById("radar");
-    if(div.offsetHeight === 0) div.style.height = "300px";
-
     const canvas = createCanvas(div.clientWidth, div.clientHeight);
     canvas.parent("radar");
     angleMode(DEGREES);
 }
 
-function updateHUD() {
-    const hud = document.getElementById("compassHUD");
-    hud.querySelectorAll('.threat-marker').forEach(m => m.remove());
+function draw(){
+    background(0,40);
+    const r = min(width,height*2)*0.8;
+    translate(width/2, height*0.9);
 
-    targets.forEach(t => {
-        if (!t.visible) return;
+    if(angleTrail.length) smoothAngle = lerp(smoothAngle, angleTrail[angleTrail.length-1], 0.15);
 
-        let percent = map(t.angle, 180, 360, 0, 100);
-        let marker = document.createElement("div");
-        marker.className = "threat-marker";
-        marker.style.position = "absolute";
-        marker.style.left = percent + "%";
-        marker.style.width = "4px";
-        marker.style.height = "100%";
-        
-        marker.style.background = t.distance < 0.4 ? "red" : "#00ff00";
-        if(t.distance < 0.4) marker.style.boxShadow = "0 0 8px red";
-        
-        hud.appendChild(marker);
-    });
-}
+    document.getElementById("hud-angle").textContent = Math.floor(constrain(smoothAngle,0,180)) + "°";
+    document.getElementById("target-count").textContent = targets.length;
 
-function draw() {
-    background(0, 30); 
-    const r = min(width, height * 2) * 0.8;
-    translate(width / 2, height * 0.9);
+    const normalized = constrain(distance / MAX_RANGE_CM, 0, 1);
+    const rangePercent = (1 - Math.pow(normalized, 1.5)) * 100;
+    const rangeFill = document.getElementById("rangeFill");
+    rangeFill.style.width = rangePercent + "%";
+    rangeFill.style.background = `rgb(${Math.floor(255*rangePercent/100)},${Math.floor(255*(1-rangePercent/100))},0)`;
 
-    stroke(0, 255, 0, 100);
-    noFill();
-    for (let i = 1; i <= 4; i++) {
-        let diameter = (r * i) / 4;
-        arc(0, 0, diameter, diameter, 180, 360);
+    const statusEl = document.getElementById("hud-status");
+    if(distance < 20 && distance > 0){
+        statusEl.textContent = "ALERT"; statusEl.style.color = "red";
+    } else {
+        statusEl.textContent = targets.length ? "TRACKING" : "SCANNING";
+        statusEl.style.color = "#0f0";
     }
-    line(-r/2, 0, r/2, 0);
 
-    targets.forEach(t => {
-        const x = (r/2 * t.distance) * cos(t.angle);
-        const y = (r/2 * t.distance) * sin(t.angle);
-        
-        if (abs(angle - t.angle) < scanSpeed * 2) {
-            t.visible = true;
-        }
+    if(targets.length){
+        document.getElementById("last-hit").textContent = Math.round(targets[targets.length-1].distance*MAX_RANGE_CM)+" cm";
+    }
 
-        if (t.visible) {
+    stroke(0,255,0,120); noFill();
+    for(let i=1;i<=4;i++) arc(0,0,(r*i)/4,(r*i)/4,180,360);
+    line(-r/2,0,r/2,0);
+
+    const sx = r/2*cos(smoothAngle+180);
+    const sy = r/2*sin(smoothAngle+180);
+    stroke(0,255,0); strokeWeight(3);
+    line(0,0,sx,sy);
+
+    const now = Date.now();
+    targets = targets.filter(t => now-t.lastSeen < 8000);
+    targets.forEach(t=>{
+        const x = (r/2*t.distance)*cos(t.angle+180);
+        const y = (r/2*t.distance)*sin(t.angle+180);
+        if(Math.abs(smoothAngle-t.angle)<2) t.visible = true;
+        if(t.visible){
             noStroke();
-            fill(t.distance < 0.4 ? [255, 0, 0] : [0, 255, 0]);
-            circle(x, y, 8);
+            fill(t.distance<0.4?[255,0,0]:[0,255,0]);
+            circle(x,y,7);
         }
     });
-
-    const sx = r/2 * cos(angle);
-    const sy = r/2 * sin(angle);
-    stroke(0, 255, 0);
-    strokeWeight(2);
-    line(0, 0, sx, sy);
-
-    document.getElementById("current-angle").textContent = Math.floor(angle) + "°";
-    updateHUD();
 }
 
-function windowResized() {
+function windowResized(){
     const div = document.getElementById("radar");
     resizeCanvas(div.clientWidth, div.clientHeight);
 }
 
+window.addEventListener('load', () => {
+    initWebSocket();
+    loadHistoricalLogs();
+});
 </script>
 </body>
 </html>
