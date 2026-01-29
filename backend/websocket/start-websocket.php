@@ -2,17 +2,24 @@
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use React\EventLoop\Factory;
+use React\Socket\Server as ReactServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
 require __DIR__ . '/WebSocketServer.php';
 
 $port = 8080;
-$server = IoServer::factory(
+$loop = Factory::create();
+$wsServer = new WebSocketServer($loop); // pass the loop to your class
+$socket = new ReactServer("0.0.0.0:$port", $loop);
+
+$server = new IoServer(
     new HttpServer(
-        new WsServer(new WebSocketServer())
+        new WsServer($wsServer)
     ),
-    $port
+    $socket,
+    $loop
 );
 
-$server->run();
+$loop->run();

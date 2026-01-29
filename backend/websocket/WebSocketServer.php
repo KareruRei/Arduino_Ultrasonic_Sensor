@@ -12,8 +12,8 @@ class WebSocketServer implements MessageComponentInterface {
     private int $last_log = 0;
     private bool $last_state = false;
 
-    public function __construct() {
-        $this->browser = new Browser();
+    public function __construct(\React\EventLoop\LoopInterface $loop) {
+        $this->browser = new Browser($loop);
     }
 
     public function onOpen(ConnectionInterface $conn) {
@@ -42,7 +42,7 @@ class WebSocketServer implements MessageComponentInterface {
         $locked = ord($payload[3]) == 1;
 
         if ($locked === $this->last_state && time() - $this->last_log < 10) return;
-        
+    
         $angle = ord($payload[0]);
         $distance = (ord($payload[1]) << 8) | ord($payload[2]);
 
@@ -59,11 +59,11 @@ class WebSocketServer implements MessageComponentInterface {
         $this->last_state = $locked;
 
         $this->browser->post(
-            'http://localhost/arduino-sensor-backend/post-logs.php',
+            'http://127.0.0.1/arduino-sensor-backend/post-logs.php',
             ['Content-Type' => 'application/json'],
             json_encode($request_payload)
         )->then(
-            function ($response) {  },
+            function ($response) { echo "Data was logged!\n"; },
             function ($error) { echo "\nFailed to log: {$error->getMessage()}\n\n"; }
         );
     }
