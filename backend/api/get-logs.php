@@ -16,10 +16,10 @@ require __DIR__ . '/../config/bootstrap.php';
 
 try {
     $stmt = ($_GET['type'] ?? 'sensor') === 'event' ?
-        $pdo->query('SELECT * FROM EventLog LIMIT 14') :
-        $pdo->query('SELECT * FROM SensorLog LIMIT 14');
+        $pdo->query('SELECT s.log_time, s.sensor_data, e.description FROM EventLog e JOIN SensorLog s ON s.id = e.sensorlog_id ORDER BY e.id DESC LIMIT 100') :
+        $pdo->query('SELECT * FROM SensorLog ORDER BY id DESC LIMIT 100');
 
-    $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode($rows);
 }
 catch (PDOException $e) {
