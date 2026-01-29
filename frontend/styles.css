@@ -9,7 +9,8 @@
     --border-color: rgba(0, 255, 65, 0.2);
 }
 
-html, body {
+html, 
+body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -25,16 +26,13 @@ body {
     flex-direction: column;
 }
 
-/* ---------- TOP BAR ---------- */
 .topbar {
     height: 60px;
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 30px;
     background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(15px);
     border-bottom: 2px solid var(--accent-green);
     box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
 }
@@ -53,7 +51,53 @@ body {
     font-size: 1.3rem;
 }
 
-/* ---------- DASHBOARD ---------- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.status-indicator {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.online {
+    color: var(--accent-green);
+    border-color: var(--accent-green);
+    box-shadow: inset 0 0 5px rgba(0, 255, 65, 0.2);
+}
+
+.offline {
+    color: #ff3333;
+    border-color: #ff3333;
+    animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0.2; }
+}
+
+.db-btn {
+    background: transparent;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    font-family: 'Share Tech Mono', monospace;
+    padding: 5px 15px;
+    cursor: pointer;
+    transition: 0.2s;
+    text-transform: uppercase;
+}
+
+.db-btn:hover {
+    background: var(--accent-green);
+    color: black;
+}
+
 .dashboard {
     flex: 1;
     display: flex;
@@ -71,47 +115,35 @@ body {
     gap: 20px;
 }
 
-/* ---------- ITEMS ---------- */
 .item {
     background: var(--panel-bg);
     backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
-    box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.05);
-    border-radius: 4px; /* More industrial look than round corners */
+    border-radius: 4px;
     overflow: hidden;
     position: relative;
 }
 
 .item-0 { grid-column: 1 / span 3; grid-row: 1 / span 2; }
-.item-1 { grid-column: 4 / span 2; grid-row: 1 / span 3; }
+.item-1 { grid-column: 4 / span 2; grid-row: 1 / span 3; display: flex; flex-direction: column; }
 .item-2 { grid-column: 1 / span 3; grid-row: 3; }
 
-/* ---------- RADAR ---------- */
 #radar {
     width: 100%;
     height: 100%;
     background: radial-gradient(circle, #0d1a0d 0%, #050505 100%);
 }
 
-/* ---------- TABLE PANEL ---------- */
 .activity {
     flex: 1;
-    overflow-y: auto;
-    width: 100%;
-}
-
-.activity::-webkit-scrollbar {
-    width: 4px;
-}
-
-.activity::-webkit-scrollbar-thumb {
-    background: var(--accent-green);
+    overflow: hidden;
 }
 
 .item-1 table {
     width: 100%;
     border-collapse: collapse;
     font-family: 'Share Tech Mono', monospace;
+    table-layout: fixed; 
 }
 
 .item-1 th {
@@ -119,71 +151,158 @@ body {
     color: var(--accent-green);
     padding: 15px;
     text-transform: uppercase;
-    font-size: 0.9rem;
+    text-align: left;
     border-bottom: 2px solid var(--accent-green);
     position: sticky;
     top: 0;
+    z-index: 1;
 }
 
 .item-1 td {
     padding: 12px;
     border-bottom: 1px solid rgba(0, 255, 65, 0.1);
     color: #a0ffa0;
-    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.item-1 tr:hover {
-    background: rgba(0, 255, 65, 0.05);
-}
 .hud-container {
-    padding: 15px;
+    padding: 20px;
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
-    background: linear-gradient(0deg, rgba(0,255,65,0.05) 0%, transparent 100%);
+    gap: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent-green);
+}
+
+.hud-title {
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+    color: var(--text-dim);
+}
+
+.hud-big {
+    text-align: center;
+}
+
+.hud-big-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.hud-big-value {
+    font-size: 3.2rem;
+    font-weight: bold;
+    text-shadow: 0 0 15px var(--accent-green);
+}
+
+.hud-block {
+    margin-bottom: 5px;
 }
 
 .hud-label {
-    font-size: 0.8rem;
-    color: var(--accent-green);
-    letter-spacing: 2px;
-    opacity: 0.7;
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    text-transform: uppercase;
 }
 
-.compass-strip {
-    position: relative;
+.range-bar {
     width: 100%;
-    height: 40px;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
-    background: rgba(0,0,0,0.3);
+    height: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
     overflow: hidden;
 }
 
-.center-line {
-    position: absolute;
-    left: 50%;
+.range-fill {
     height: 100%;
-    width: 2px;
-    background: red;
-    box-shadow: 0 0 10px red;
-    z-index: 2;
+    width: 0%;
+    transition: width 0.1s;
 }
 
-.threat-marker {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 20px;
-    background: var(--accent-green);
-    box-shadow: 0 0 8px var(--accent-green);
+.hud-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
 }
 
-.hud-readout {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 1.2rem;
+.hud-grid div:nth-child(even) {
+    text-align: right;
+    font-weight: bold;
+}
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: var(--bg-dark);
+    border: 2px solid var(--accent-green);
+    width: 70%;
+    height: 60%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+}
+
+.modal-header {
+    background: rgba(0, 255, 65, 0.1);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     color: var(--accent-green);
 }
 
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.db-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.db-table th {
+    color: var(--accent-green);
+    text-align: left;
+    border-bottom: 1px solid var(--accent-green);
+    padding: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--panel-bg);
+    z-index: 1;
+}
+
+.db-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--accent-green);
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+}
