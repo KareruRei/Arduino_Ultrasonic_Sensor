@@ -81,7 +81,7 @@ void loop() {
       distance = getDistance();
       sendRadarData(angle, distance, locked);
 
-      if (distance < 50) {
+      if (distance < 50 distance > 0) {
         locked = true;
         break;
       }
@@ -117,6 +117,8 @@ void loop() {
       digitalWrite(red, LOW);
       digitalWrite(blue, LOW);
       digitalWrite(green, LOW);
+
+      return;
     }
 
     Serial.println(distance);
