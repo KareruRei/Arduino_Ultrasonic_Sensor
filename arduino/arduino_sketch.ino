@@ -81,7 +81,7 @@ void loop() {
       distance = getDistance();
       sendRadarData(angle, distance, locked);
 
-      if (distance < 50 distance > 0) {
+      if (distance < 50 && distance > 0) {
         locked = true;
         break;
       }
