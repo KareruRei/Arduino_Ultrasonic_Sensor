@@ -102,7 +102,7 @@ composer install
     ```
 
 ### 7th: Expose the webpage to xampp/htdocs
-ows (Run Command Prompt as Administrator)
+- Windows (Run Command Prompt as Administrator)
     ```
     cd "full/path/to/xampp/htdocs"
     mklink /J radar-system "full/path/to/Arduino_Ultrasonic_Sensor/frontend/dashboard.html"
